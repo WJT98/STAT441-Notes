@@ -130,6 +130,7 @@
 \newcommand*{\barx}{\overline x}
 \newcommand*{\barY}{\overline Y}
 \newcommand*{\bary}{\overline y}
+\DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
 \usepackage{listings}
 \lstset{ 
   language=R,               
@@ -513,7 +514,7 @@ where $\widehat{f}$ is the estimated function and $x_0$ and $y_0$ are the test o
     \centering
     \includegraphics[width=\textwidth]{Fit of SVM.png}       
     \label{fig:my_label}
-\end{figure}
+    \end{figure}
 \item a is underfit, d is overfit, (b,c) are compromises (felxible without apparent overfitting).
 \end{itemize}
 \subsection{Training/Validation/Test data sets}
@@ -791,7 +792,339 @@ the estimation.
     \item Most common strategy to address missing values is to impute them: predict a suitable value that is consistent with other covariates.
 \end{itemize}
 
-Standard Dev. (SD) = $\frac{1}{n-1}\sum^n_{i-1}$
+Standard Dev. (SD) = $\frac{1}{n-1}\sum^n_{i-1}$ \\
 Standard error = $\frac{SD}{\sqrt{n}}$
+
+\newpage
+\section{Working with Text Data}
+\subsection{Turning Text into Variables}
+\subsubsection{Text as a bag-of-words}
+\begin{itemize}
+    \item Give each word a variable = its occurrences ($t_cat = 3$)
+    \item n\_token = total \# of words
+    \item Ignores word order
+\end{itemize}
+
+\subsubsection{Stopwords}
+\begin{itemize}
+    \item Stopwords: the, a, is, to, that, etc.
+    \item Knowing how often stopwords occur in a text is not helpful in classifying texts.
+    \item Removing stopwords indiscriminately is not always a great idea.
+\end{itemize}
+
+\subsubsection{Stemming and Lemmatization}
+\begin{itemize}
+    \item The words "chases", "chased", and "chasing" are various inflections of the same word. 
+    \begin{itemize}
+        \item This group of inflected words will be represented by its canonical representative "chase". 
+    \end{itemize}
+    \item \textbf{Lemming}: Substituting an inflected word with its \emph{lemma}/canonical representation. 
+    \begin{itemize}
+        \item Usually leads to better predictive performance. 
+    \end{itemize}
+    \item \textbf{Stemming}: Applying a set of deletion and substitution rules to a word to identify the word stem. 
+        \begin{itemize}
+            \item Ex: "Chase" can be obtained from "Chased".
+            \item Stemming doesn't always find a word's lemma. (Ex: go and went have the same lemma without sharing letters. Was, am , be, I'm have the same lemma.)
+            \item Usually, \emph{Understem} or light stemming leads to better results
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{n-gram variables}
+\begin{itemize}
+    \item Bigrams: Variable for two-word sequence. (Ex: "Nigerian Prince" should be categorized as SPAM)
+    \item n-gram: Variable containing "n" words.  
+    \item Introducing higher order n-grams partially recovers word order. 
+    \item \textbf{Threshold}: 
+    \begin{itemize}
+        \item Minimum number of texts in which the word has to occur before a variable is created.
+        \item n-grams that occur only a few times across all text may not be helpful for prediction and can be discarded.
+        \item Be wary of setting threshold too high(informative variables may be discarded).
+        \item \textbf{Typical threshold}: 5
+    \end{itemize}  
+\end{itemize}
+\subsubsection{Normalization}
+\begin{itemize}
+    \item Normalize words to a canonical version of the word
+    \item Ex: all words encoded in lower-case (Cat = cat).
+    \item Can be tricky: US (United States) != us
+\end{itemize}
+
+\subsubsection{Rescaling counts using TF-IDF}
+
+\begin{itemize}
+    \item \textbf{Document(D)}: text of one observation. 
+    \item \textbf{Term}: "word".
+    \item \textbf{Term frequency (TF)}: Dampens effect of additional words\\
+    $$TF = \begin{cases}
+        1 + log(f_{t,d}), & \text{ if } f_{t,d} > 0 \\
+        0, & \text{otherwise}\\
+    \end{cases} $$
+    where $f_{t,d}$ is the number of times word t appears in document d. \item \textbf{Inverse document frequency(IDF)}: Some frequently used words may not be useful in discriminating among the texts. 
+    \begin{align*}
+        IDF = log(N/N_t)
+    \end{align*}
+    where N is the \# of documents, and $N_t$ is the number of documents containing the term t at least once. 
+    \item TF-IDF: There are several minor variations of how to define this. 
+    \begin{align}
+        TF - IDF = TF \cdot IDF
+    \end{align}
+\end{itemize}
+
+\subsubsection{Misspelled Words}
+\begin{itemize}
+    \item Look up all words in a dictionary and flag misspelled words. 
+    \item Correct the words by computing the edit or Levenshtein Distance. 
+    \textbf{Edit distance}: \# edits required to turn misspelled word into correctly spelled word. 
+    \begin{itemize}
+        \item Operations: add/remove/substitute char
+        \item Ties solved by using the more common word. 
+        \item Reduce computation: Limit search space to words with the same first letter. 
+    \end{itemize}
+\end{itemize}
+
+\subsection{Why Linear and logistic regression does not work well for text}
+\begin{itemize}
+    \item \# of n-grams are typically large. $p >> n$
+    \item Linear and logistic regression will fail when there are more parameters than observations. 
+    \item Because each document only contains a limited number of words, most values of n-grams are 0. 
+    \item This induces a high degree of collinearity among variables. 
+\end{itemize}
+\subsection{Summary}
+Note: Indicator variables usually work better for short texts compared to a frequency count. 
+
+\newpage
+\section{Nearest Neighbors}
+
+\subsection{k-Nearest Neighbors}
+\begin{itemize}
+    \item Suppose $x_0$ is a new observation to be classified.
+    \item Optimal Bayes decision rule assigns the class j with highest probability:
+    \begin{align*}
+        \argmax_j P(Y=j|X=x_0)
+    \end{align*}
+    \item Unfortunately these probabilities are unknown. 
+    \item k-nn estimates these probabilities locally. 
+    \item Find the nearest k observations in the training data and define probabilities for each class
+    \begin{align*}
+        P(Y=k|X=x_0)=k_i/k
+    \end{align*}
+    where $k_i$ is the number of the k nearest neighbors from class i and k = $\sum^g_{i=1}k_i$.
+    \item Example for k = 2:
+    \begin{figure}[ht]
+    \centering
+     \includegraphics[width=1.0\textwidth]{2-nn-ex.png}
+    \end{figure}
+    \begin{align*}
+        \text{P(Y=win$|$upcoming match)} = 0/2 = 0 \\
+        \text{P(Y=draw$|$upcoming match)} = 0/2 = 0 \\ 
+        \text{P(Y=loss$|$upcoming match)} = 2/2 = 0 
+    \end{align*}
+    based on the the two closest observations determined by euclidean distance.
+    
+    \item Class probabilities can also be computed as the posterior probability of classification using Bayes theorem:
+    \begin{align*}
+        P(Y=j|X=x_0) &= \frac{P(X=x_0,Y=j)}{P(X=x_0)} \\
+        &= \frac{P(X=x_0|Y=j) \cdot P(Y=j)}{\sum^G_{i=1} [P(X=x_0|Y=i) \cdot P(Y=i)]}\\
+        &= \frac{q_j k_j}{n_j} / \sum^G_{i=1}\frac{q_i k_i}{n_i}
+    \end{align*}
+    where G is the number of classes(groups), \\
+    $q_j$ = P(Y=j) is the prior probability of class j, \\
+    $k_j$ is the number of k nearest neighbors from class j, \\
+    $n_j$ is the sample size of class j. 
+\end{itemize}
+
+\subsubsection{Prediction}
+\begin{itemize}
+    \item Predicted class = majority vote of the $k$ local observations. 
+    \item If data contains exactly two classes, it is often better to choose an odd number to avoid ties. 
+    \item If tie:
+    \begin{itemize}
+        \item Break ties at random.
+        \item Increase $k$ until tie is broken.
+        \item Use single nearest neighbor(1-NN) as tie breaker, there may however be more than one single closest observation resulting in another tie. 
+    \end{itemize}
+    \item For knn regression, the predicted value is the average of the response of the k nearest neighbors. 
+    \item kNN is more often used for classification than in regression.
+\end{itemize}
+
+\subsubsection{Distance and Similarity}
+Euclidian distance is often used in k-nn. Sometimes it is more convenient to specify a similarity measure instead of a distance measure. 
+\begin{itemize}
+    \item \textbf{Jacard Similarity Measure}: Can be used when all features are binary. Proportion of matches where the true negatives are excluded from denominator. 
+    \begin{align*}
+        S_{Jaccard}(ij) = \frac{TP}{TP + FN + FP}
+    \end{align*}
+     where $S_{Jaccard}(ij)$ is the similarity between two observations i and j. 
+    \item \textbf{Euclidian Distance}: Works better for prediction when standardized.
+    \begin{align*}
+        d(x,j) = \sqrt{\sum^n_{i=1}(x_i - j_i)^2}
+    \end{align*}
+    \item \textbf{Cosine($x_0$,x) Similarity Measure}: Traditionally used in information retrieval (Ex: searching the web). Also called angular similarity because the cosine is a monotone decreasing function of the angle between two vectors.  
+    
+    \item Similarity to Distance conversion: Smallest distance = greatest similarity
+    \begin{align*}
+        d_1(ij) &= \sqrt{s(ii) + (sjj) - 2s(ij)} \\
+        d_2(ij) &= 1 - s(ij) \\
+    \end{align*}
+    where s(ij) is the similarity between i and j.
+\end{itemize}
+
+\subsection{Properties of kNN}
+\subsubsection{kNN accommodates nonlinear behavior}
+kNN is highly flexible and approximates the Bayes classifier. The $k$ regulates the bias-variance tradeoff. 
+\begin{itemize}
+    \item Comparison of k-nn to logistic regression.
+\end{itemize}
+    \begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{knn-1-3.png}       
+    \label{fig:my_label}
+    \end{figure}
+    \begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{log-reg.png}       
+    \label{fig:my_label}
+    \end{figure}
+\newpage
+\subsubsection{kNN approximates the Bayes classifier}
+\begin{itemize}
+    \item The Bayes classifier assigns the class $j$ for which P(Y=j$|$X=$x_0$) is largest.
+    \item However, this conditional can only be calculated when the underlying true model is known.
+    \item P(Y=j$|$X=$x_0$) = $k_i/k$ attempts to approximate the conditional probability for a given class with a fraction of observations in a local neighborhood of k observations that correspond to that class. 
+\end{itemize}
+
+\subsubsection{k regulate  the Bias-Variance tradeoff}
+\begin{itemize}
+    \item Bias: Modelling $x_0$ as a function of only a few data points allowing for high flexibility (utilizing features of the closest data points but not the ones farther apart)
+    \item For the choice of k = 1, the algorithm is highly local and has low bias. However, the prediction is only based on a single observation so the variance of the estimate is high.
+    \item Increasing $k$ also increases the average distance of the $k$ training obs to $x_o$: so bias increases.
+    \item The test error initially decreases because the reduction in variance is larger than the increase in bias as $k$ increases. At some point this reverses leading to a U-shape for the test error. 
+    \item The fact that training is not strictly monotonically increasing and the U-shape of the test error is also not a perfect "U" are a reminder that the curves are estimated and the estimates are subject to variability.
+    \item There is no point in trying to decide whether k should be 49, 50, 51 based on a single test error curve when a different random split into training and test data might show a minimum at k = 40 or k = 30.
+    \begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{knn-error.png}       
+    \label{fig:my_label}
+\end{figure}
+\end{itemize}
+
+\subsubsection{kNN is sensitive to scaling}
+\begin{itemize}
+    \item To avoid some that some variables dominate determining the nearest neighbors, one option is to standardize/rescale variables. 
+    \item Mahalonobis transformation: 
+\end{itemize}
+
+\subsubsection{kNN is slow and memory hungry}
+\begin{itemize}
+    \item For one test observation, the time to find the nearest neighbor is $O(n_{train} \cdot p)$ where $n_{train}$ is the number of training observations and p is the number of variables.
+    \item In comparison, logistic regression has a time complexity of $O(p)$ for classification. 
+    \item Training data needs to be stored which makes kNN memory intensive.
+    \item Prediction based on linear regression only need to store $p$ coefficients.
+    \item nn-classifiers are particularly easy to cross-validate with the leave-one-out technique. Since kNN doesn't require a model but simply looks up the nearest neighbors, LOO only needs to exclude the current observation.   
+\end{itemize}
+
+\subsubsection{Grid search for k and distance metrics}
+\begin{itemize}
+    \item 
+\end{itemize}
+
+\subsubsection{Summary}
+\begin{itemize}
+    \item kNN accommodates highly local behavior. 
+    \item Works well when decision boundary is highly irregular and training data are sufficiently large.
+    \item Not useful for learning how x-variables relate to outcomes.
+\end{itemize}
+
+
+\newpage
+\section{Naive Bayes Classifier}
+
+\subsection{Naive Bayes}
+\begin{itemize}
+
+    \item Using Bayes theorem to calculate the probability of an observation belonging to a class k:
+    \begin{align*}
+        P(Y=k|X=x) = \frac{\pi_kf_k(x)}{\sum^K_{l=1}\pi_lf_l(x)}
+    \end{align*}
+    where $f_k(x) = P(X=x|Y=k), x = (x_1,...,x_p)^T$ is the density conditional on class k and $\pi_k$ is the prior probability of class k.
+    \item Now assume $x_j= 1,...,p$ are independent. This gives:
+    \begin{align*}
+        f_k(x)\prod^p_{j=1}f_{kj}(x_j)
+    \end{align*}
+    where p is the \# of x-variables and $f_{kj}(x_j) = P(X_j = x_j|Y=k)$ refers to the density of $x_j$ given Y = k.
+    \item Since the denominator does not depend on k, to find the class that maximizes the posterior probability, we can ignore it giving:
+    \begin{align*}
+        P(Y=k, X=x) \propto \pi_k\prod^p_{j=1}f_{kj}(x_j)
+    \end{align*}
+    \item We predict the class k that maximizes the posterior probability:
+    \begin{align*}
+        \widehat{y} = \argmax_k\left(\pi_k\prod^p_{j=1}f_{kj}(x_j)\right)
+    \end{align*}
+    \item When there are too many x-variables, multiplying many small probabilities may result in a numerical "underflow". To avoid treating such probabilities as 0, use natural log. Since it is a monotone function, taking the log does not change which class k gives the maximum posterior probability. 
+    \begin{align*}
+        \widehat{y} = \argmax_k\left(\log(\pi_k) + \sum^p_{j=1}log[f_{kj}(x_j)]\right)
+    \end{align*}
+\end{itemize}
+
+\subsubsection{Estimation}
+\begin{itemize}
+    \item \textbf{Prior probability}: $$\pi_k = \frac{n_k}{n}$$
+    \item \textbf{Density} of \emph{Multinomial Naive Bayes}: When all x-variables are categorical.   $$f_{kj}(x) = P(X_j=x|Y=k) = \frac{n_{kj}}{n_k}$$ 
+    \item \textbf{Density} of \emph{Gaussian Naive Bayes}: If at least one x-variable is a continuous variable:
+    \begin{align*}
+        f_{kj}(x_j) = \frac{1}{\sqrt{2\pi\sigma^2_{jk}}}exp\left[-\frac{1}{2}\left(\frac{x_j-\mu_{jk}}{\sigma_{jk}}\right)^2\right]
+    \end{align*}
+    where the means $\mu_{kj}$ and variances $\sigma_{jk}$ are estimated from the data. 
+    \item Sometimes continuous variables are binned into categorical variables. (Income binned into low high). Thus, Gaussian Naive Bayes is not as common as multinomial Naive Bayes.
+\end{itemize}
+
+\subsection{Smoothing}
+If one of the x-values did not occur for a given class k, the corresponding probability will be 0. Thus, the conditional probability of class k, P(Y=k, X=x) is 0 also. This causes a numerical problem when taking the log. Smoothing solves this problem by "shrinking" probability estimates away from the extremes avoiding probabilities of 0 and 1 altogether.
+
+\subsubsection{LaPlace Smoothing and a generalization}
+\begin{itemize}
+    \item For a given x-variable, LaPlace smoothing adds one observation to each category:
+    \begin{align*}
+        P(X_j = x_j |Y=k) = \frac{n_{kj} + 1}{n_k + d_j}
+    \end{align*}
+    where $d_j$ is the \# of categories of the corresponding x-variable.
+    \item Instead of adding just one observation, we can add an arbitrary number of observations, L (L does not have to be an integer):
+     \begin{align*}
+        P(X_j = x_j |Y=k) = \frac{n_{kj} + L}{n_k + L \cdot d_j}
+    \end{align*}
+    \item As L increases:
+    \begin{align*}
+        P(X_j = x_j |Y=k) \rightarrow 1/d_j
+    \end{align*}
+    
+\end{itemize}
+
+\subsubsection{The m-estimator}
+\begin{itemize}
+    \item m-estimator:
+    \begin{align*}
+        P(X_j = x_j |Y=k) = \frac{n_{kj} + m \cdot p_j}{n_k + m}
+    \end{align*}
+    where $p_j$, j = 1,...,$d_j$ is the prior probability of class $x_j$.
+    \item Assuming a uniform prior, all outcomes are equally likely, we estimate $p_j$ = 1/$d_j$
+    \item We can then think of m-estimator as adding m virtual observations, of which $m \cdot p_j$ fall into each class. 
+    \item m is a tuning parameter analogous to L in the generalized LaPlace estimator. 
+    \item For very large m
+    \begin{align*}
+        P(X_j = x_j |Y=k) \rightarrow p_j
+    \end{align*}
+    For the uniform prior, this has the same limit as that of the generalized LaPlace estimator.
+\end{itemize}
+
+\subsection{Summary and Remarks}
+\begin{itemize}
+    \item Naive Bayes Classification is easily scalable because the condition independence assumption allows estimating one variable at a time.
+    \item For the same reason, Naive Bayes does not tend to need a lot of training data.
+    \item Naive Bayes does good in prediction despite its wrong assumption of conditional independence. 
+    \item Although the individual class density estimates may be biased, this bias might not hurt the posterior probabilities as much, especially near decision regions. 
+    \item The problem may be able to withstand considerable bias for the savings in variance such a "Naive" assumption earns. 
+    \item Naive Bayes Classification may not always give accurate estimates of probabilities. However, classification is fairly robust to inaccuracies in the probabilities because classification only depends on identifying which class has the \emph{largest} probability. 
+\end{itemize}
 
 \end{document}
